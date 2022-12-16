@@ -14,6 +14,7 @@ library(ggplot2)
 library(ggthemes)
 library(viridis)
 library(JuliaCall)
+library(fasterize)
 
 
 
@@ -23,14 +24,14 @@ library(JuliaCall)
 
 
 #load in the cdls raster
-cdls <- raster("C:/Users/boatg/OneDrive/Desktop/ARCfiles/cdlsrast_final.tif")
+cdls <- raster("cdlsrast_final.tif")
 
 #load in the crp polygon
 shape <- st_read("crp_vector.shp")
 # shape <- read_sf(dsn = ".", layer = "crp_vector", fid_column_name = 'OBJECTID')
 
 #make it a raster
-crp <-fasterize(shape,cdls)
+crp <-fasterize(shape, cdls)
 
 #make all the NA equal 0
 crp[is.na(crp[])]<-0
@@ -41,9 +42,12 @@ crp[!(cdls > 0)] <- NA
 cdls[is.na(crp[])]<-NA
 
 #now that we have both we can make them a spatraster, use og cdls to retain values for selection later
-cdls<-rast("C:/Users/boatg/OneDrive/Desktop/ARCfiles/cdlsrast_final.tif")
+# cdls<-rast("C:/Users/boatg/OneDrive/Desktop/ARCfiles/cdlsrast_final.tif")
+cdls<-rast(cdls)
 crp<-rast(crp)
 
+r_stack <- rast(list(crp = crp,
+                     cdls = cdls))
 
 # patch id test multi ------------------------------------------------------------
 #testing to see if the patch ide works with multiple cell types
@@ -188,7 +192,8 @@ crp<-rast(crp)
 plot(crp)
 #we can read in the levels from cdls, most of its ag and the lit hasn't shown any
 #appreciable dif between any row crops except winter wheat but that has a temporal element so we'll clump it for now
-rcl<-as.data.frame(levels(cdls)) #as a data frame so we can mutate on a column of weights
+# rcl<-as.data.frame(levels(cdls)) #as a data frame so we can mutate on a column of weights
+rcl <- data.frame(Value = unique(cdls))
 #its a data frame now, we'll manipulate it to have just the ID and resistances
 #setting categories of cover: arable land, Grassland, Forest, Developed, water, wetland,
 
@@ -210,9 +215,11 @@ cdls_prob <- classify(cdls, rcl_mat, right = NA)
 
 #repeat that but with crp layer
 
-crpmat<-as.data.frame(levels(crp))
+# crpmat<-as.data.frame(levels(crp))
+crpmat<-data.frame(Value = unique(crp))
+
 #make a value in the first column to attache things to 
-crpmat[1] = c(1)
+# crpmat[1] = c(1)
 crpmat<-mutate(crpmat, resistance = 100)#
 crpmat<-as.matrix(cbind(as.integer(crpmat$X..), as.double(crpmat$resistance)))
 crp_prob<- classify(crp, crpmat, right =NA )
